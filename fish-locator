@@ -1,0 +1,259 @@
+--!optimize 2
+--made with the help of claude, i do not take full credit for this, i just put it together and made it work
+
+local CONFIG = {
+    targetMutation = {
+        "Coral",
+        "Shadow",
+        "Moss"
+    }, -- change to whatever mutations ur hunting, Shiny = no mutation, so if you want to see fish with no mutations add "Shiny" in the table
+    fishFolder = game.Workspace.Game.Fish.client,
+    fishColor = Color3.fromRGB(100, 150, 255),
+    dashColor = Color3.fromRGB(255, 255, 255),
+    mutationColor = Color3.fromRGB(255, 255, 0),
+    distanceColor = Color3.fromRGB(255, 255, 255),
+    textSize = 15,
+    textFont = 11,
+    textOutline = true,
+    outlineColor = Vector3.new(0, 0, 0),
+    offset = Vector3.new(0, 4, 0),
+}
+
+local textObjects = {}
+
+local function isTargetMutation(mutation)
+    for _, targetMut in ipairs(CONFIG.targetMutation) do
+        if mutation == targetMut then
+            return true
+        end
+    end
+    return false
+end
+
+local function getFishInfo(fish)
+    local fishType = nil
+    local mutation = nil
+    
+    local success1, fishTypeText = pcall(function()
+        return memory.readstring(fish.Head.stats.Fish.Data, 3592)
+    end)
+    
+    if success1 and fishTypeText then
+        fishType = fishTypeText
+    end
+    
+    local success2, mutationText = pcall(function()
+        return memory.readstring(fish.Head.stats.Mutation.Label.Data, 3592)
+    end)
+    
+    if success2 and mutationText then
+        mutation = mutationText
+    end
+    
+    return fishType, mutation
+end
+
+local function createTextForFish(fish, fishType, mutation)
+    if not fish:IsA("Model") then
+        return
+    end
+    
+    local fishLabel = Drawing.new("Text")
+    fishLabel.Text = fishType
+    fishLabel.Color = CONFIG.fishColor
+    fishLabel.Size = CONFIG.textSize
+    fishLabel.Center = false
+    fishLabel.Outline = CONFIG.textOutline
+    fishLabel.OutlineColor = CONFIG.outlineColor
+    fishLabel.Font = CONFIG.textFont
+    fishLabel.Visible = false
+    fishLabel.ZIndex = 1000
+    
+    local dashLabel = Drawing.new("Text")
+    dashLabel.Text = " - "
+    dashLabel.Color = CONFIG.dashColor
+    dashLabel.Size = CONFIG.textSize
+    dashLabel.Center = false
+    dashLabel.Outline = CONFIG.textOutline
+    dashLabel.OutlineColor = CONFIG.outlineColor
+    dashLabel.Font = CONFIG.textFont
+    dashLabel.Visible = false
+    dashLabel.ZIndex = 1000
+    
+    local mutationLabel = Drawing.new("Text")
+    mutationLabel.Text = mutation
+    mutationLabel.Color = CONFIG.mutationColor
+    mutationLabel.Size = CONFIG.textSize
+    mutationLabel.Center = false
+    mutationLabel.Outline = CONFIG.textOutline
+    mutationLabel.OutlineColor = CONFIG.outlineColor
+    mutationLabel.Font = CONFIG.textFont
+    mutationLabel.Visible = false
+    mutationLabel.ZIndex = 1000
+    
+    local dash2Label = Drawing.new("Text")
+    dash2Label.Text = " - "
+    dash2Label.Color = CONFIG.dashColor
+    dash2Label.Size = CONFIG.textSize
+    dash2Label.Center = false
+    dash2Label.Outline = CONFIG.textOutline
+    dash2Label.OutlineColor = CONFIG.outlineColor
+    dash2Label.Font = CONFIG.textFont
+    dash2Label.Visible = false
+    dash2Label.ZIndex = 1000
+
+    local distanceLabel = Drawing.new("Text")
+    distanceLabel.Text = "0m"
+    distanceLabel.Color = CONFIG.distanceColor
+    distanceLabel.Size = CONFIG.textSize
+    distanceLabel.Center = false
+    distanceLabel.Outline = CONFIG.textOutline
+    distanceLabel.OutlineColor = CONFIG.outlineColor
+    distanceLabel.Font = CONFIG.textFont
+    distanceLabel.Visible = false
+    distanceLabel.ZIndex = 1000
+    
+    local cachedPart = fish:FindFirstChild("Head") or fish.PrimaryPart
+    
+    textObjects[fish] = {
+        fishLabel = fishLabel,
+        dashLabel = dashLabel,
+        mutationLabel = mutationLabel,
+        dash2Label = dash2Label,
+        distanceLabel = distanceLabel,
+        part = cachedPart,
+        fishType = fishType,
+        mutation = mutation
+    }
+    
+    return fishLabel, dashLabel, mutationLabel, dash2Label, distanceLabel
+end
+
+local function updateTextPosition(fish, data)
+    local fishLabel = data.fishLabel
+    local dashLabel = data.dashLabel
+    local mutationLabel = data.mutationLabel
+    local dash2Label = data.dash2Label
+    local distanceLabel = data.distanceLabel
+    local cachedPart = data.part
+    
+    if not fish or not fish.Parent then
+        fishLabel.Visible = false
+        dashLabel.Visible = false
+        mutationLabel.Visible = false
+        dash2Label.Visible = false
+        distanceLabel.Visible = false
+        return
+    end
+    
+    local camera = workspace.CurrentCamera
+    if not camera then
+        fishLabel.Visible = false
+        dashLabel.Visible = false
+        mutationLabel.Visible = false
+        dash2Label.Visible = false
+        distanceLabel.Visible = false
+        return
+    end
+    
+    if not cachedPart or not cachedPart.Parent then
+        fishLabel.Visible = false
+        dashLabel.Visible = false
+        mutationLabel.Visible = false
+        dash2Label.Visible = false
+        distanceLabel.Visible = false
+        return
+    end
+    
+    local objectPosition = cachedPart.Position
+    local worldPosition = objectPosition + CONFIG.offset
+    
+    local screenPosition, onScreen = camera:WorldToScreenPoint(worldPosition)
+    local distance = vector.magnitude(camera.CFrame.Position - objectPosition)
+    
+    if onScreen then
+        distanceLabel.Text = string.format("%.0fm", distance)
+        
+        local fishWidth = fishLabel.TextBounds.X
+        local dashWidth = dashLabel.TextBounds.X
+        local mutationWidth = mutationLabel.TextBounds.X
+        local dash2Width = dash2Label.TextBounds.X
+        
+        local totalWidth = fishWidth + dashWidth + mutationWidth + dash2Width + distanceLabel.TextBounds.X
+        local startX = screenPosition.X - (totalWidth / 2)
+        
+        fishLabel.Position = Vector2.new(startX, screenPosition.Y)
+        dashLabel.Position = Vector2.new(startX + fishWidth, screenPosition.Y)
+        mutationLabel.Position = Vector2.new(startX + fishWidth + dashWidth, screenPosition.Y)
+        dash2Label.Position = Vector2.new(startX + fishWidth + dashWidth + mutationWidth, screenPosition.Y)
+        distanceLabel.Position = Vector2.new(startX + fishWidth + dashWidth + mutationWidth + dash2Width, screenPosition.Y)
+        
+        fishLabel.Visible = true
+        dashLabel.Visible = true
+        mutationLabel.Visible = true
+        dash2Label.Visible = true
+        distanceLabel.Visible = true
+    else
+        fishLabel.Visible = false
+        dashLabel.Visible = false
+        mutationLabel.Visible = false
+        dash2Label.Visible = false
+        distanceLabel.Visible = false
+    end
+end
+
+local function setupFish(fish)
+    if textObjects[fish] then
+        return
+    end
+    
+    local fishType, mutation = getFishInfo(fish)
+    
+    if not fishType or not mutation then
+        return
+    end
+    
+    if not isTargetMutation(mutation) then
+        return
+    end
+    
+    createTextForFish(fish, fishType, mutation)
+end
+
+local function removeFish(fish)
+    local data = textObjects[fish]
+    if data then
+        data.fishLabel:Remove()
+        data.dashLabel:Remove()
+        data.mutationLabel:Remove()
+        data.dash2Label:Remove()
+        data.distanceLabel:Remove()
+        textObjects[fish] = nil
+    end
+end
+
+local function setupAllFish()
+    for _, fish in ipairs(CONFIG.fishFolder:GetChildren()) do
+        setupFish(fish)
+    end
+end
+
+setupAllFish()
+
+local RunService = game:GetService("RunService")
+
+RunService.Render:Connect(function()
+    for _, fish in ipairs(CONFIG.fishFolder:GetChildren()) do
+        if not textObjects[fish] then
+            setupFish(fish)
+        end
+    end
+    
+    for fish, data in pairs(textObjects) do
+        if fish and fish.Parent then
+            updateTextPosition(fish, data)
+        else
+            removeFish(fish)
+        end
+    end
+end)
