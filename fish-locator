@@ -13,8 +13,18 @@ local function getFishInfo(fish)
     local fishType = nil
     local mutation = nil
     
+    local statsPart = fish:FindFirstChild("Head") or fish:FindFirstChild("RootPart")
+    if not statsPart then
+        return nil, nil
+    end
+    
+    local stats = statsPart:FindFirstChild("stats")
+    if not stats then
+        return nil, nil
+    end
+    
     local success1, fishTypeText = pcall(function()
-        return memory.readstring(fish.Head.stats.Fish.Data, 3592)
+        return memory.readstring(stats.Fish.Data, 3592)
     end)
     
     if success1 and fishTypeText then
@@ -22,7 +32,7 @@ local function getFishInfo(fish)
     end
     
     local success2, mutationText = pcall(function()
-        return memory.readstring(fish.Head.stats.Mutation.Label.Data, 3592)
+        return memory.readstring(stats.Mutation.Label.Data, 3592)
     end)
     
     if success2 and mutationText then
@@ -92,7 +102,7 @@ local function createTextForFish(fish, fishType, mutation)
     distanceLabel.Visible = false
     distanceLabel.ZIndex = 1000
     
-    local cachedPart = fish:FindFirstChild("Head") or fish.PrimaryPart
+    local cachedPart = fish:FindFirstChild("Head") or fish:FindFirstChild("RootPart") or fish.PrimaryPart
     
     textObjects[fish] = {
         fishLabel = fishLabel,
